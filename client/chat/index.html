@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tes-Chat</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f2f2f2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+
+      .container {
+        display: flex;
+        width: 600px;
+        height: 80%;
+        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .sidebar {
+        width: 120px;
+        background-color: #4caf50;
+        color: white;
+        padding: 120px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .navbar {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .chat-container {
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      .input-container {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background-color: white;
+      }
+
+      .input-message {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-right: 10px;
+      }
+
+      .send-button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      .new-message-container {
+        display: flex;
+        align-items: center;
+        text-align: end;
+        padding: 10px;
+        background-color: white;
+      }
+      .button-user {
+        width: 100%;
+      }
+      .sentMessage {
+        text-align: end;
+        background-color: #4caf50;
+        /* color: black; */
+        padding: 10px;
+        margin: 5px;
+        border-radius: 10px;
+      }
+
+      .receivedMessage {
+        background-color: black;
+        color: #f2f2f2;
+        padding: 10px;
+        margin: 5px;
+        border-radius: 10px;
+      }
+      .button-user.active {
+        background-color: red;
+      }
+      h2 {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="sidebar"></div>
+
+      <div class="main-content">
+        <div class="navbar">
+          <h2>Chat App</h2>
+        </div>
+
+        <div class="chat-container" id="chat-container">
+          <!-- <h2>(Choose One Your Friend)</h2> -->
+        </div>
+
+        <form class="input-container" id="messageForm">
+          <input
+            type="text"
+            class="input-message"
+            id="input-message"
+            name="message"
+            placeholder="Type your message..."
+          />
+          <button type="submit" class="send-button" name="sendMessage">
+            Send
+          </button>
+        </form>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+      const messagesContainer = document.getElementById("chat-container");
+      const messageInput = document.getElementById("input-message");
+      fetch("/api/getUser")
+        .then((res) => res.json())
+        .then((data) => {
+          data.forEach((user, index) => {
+            const button = document.createElement("button");
+            button.className = "button-user";
+            button.setAttribute("data-user-id", user.id);
+            const div = document.createElement("div");
+            const userName = document.createElement("h4");
+            userName.textContent = `${user.name} (id:${user.id})`;
+            div.appendChild(userName);
+            button.appendChild(div);
+            document.querySelector(".sidebar").appendChild(button);
+
+            // Di dalam loop pembuatan tombol pengguna
+            button.addEventListener("click", () => {
+              // Hapus kelas 'selected' dari semua tombol pengguna
+              document.querySelectorAll(".button-user").forEach((b) => b.classList.remove("selected"));
+
+              // Tambahkan kelas 'selected' ke tombol yang diklik
+              button.classList.add("selected");
+
+              // Bersihkan container pesan sebelum menampilkan pesan baru
+              messagesContainer.innerHTML = "";
+
+              // Memuat dan menampilkan pesan berdasarkan ID pengguna yang dipilih
+              fetchAndDisplayMessages(button.getAttribute("data-user-id"));
+            });
+            if(index===0){
+                button.click();
+            }
+          });
+        });
+
+      async function fetchAndDisplayMessages(selectedUserId) {
+        try {
+          // Mengambil data pesan dari server
+          const response = await fetch(`/api/getMessages/${selectedUserId}`);
+          const messagesData = await response.json();
+          const response2 = await fetch(`/api/getLoggedInUserData`);
+          const idLogged = await response2.json();
+
+          // Menampilkan pesan dalam container
+          messagesData.forEach((item) => {
+            const messageElement = document.createElement("p");
+            if (item.id_pengirim === idLogged) {
+              messageElement.textContent = `You : ${item.pesan}`;
+              messageElement.classList.add("sentMessage");
+            } else {
+              messageElement.textContent = `id ${item.id_pengirim} : ${item.pesan}`;
+              messageElement.classList.add("receivedMessage");
+            }
+
+            // messageElement2.textContent = `Message:`;
+            messagesContainer.appendChild(messageElement);
+            // messagesContainer.appendChild(messageElement2);
+
+            if (item.id_pengirim == idLogged) {
+              messageElement.classList.add("sentMessage");
+            } else if (item.id_penerima == selectedUserId) {
+              messageElement.classList.add("receivedMessage");
+            }
+            messagesContainer.appendChild(messageElement);
+          });
+        } catch (error) {
+          console.error("Error fetching messages:", error);
+        }
+      }
+
+      // Menangani pengiriman pesan saat form disubmit
+      // Fungsi untuk mendapatkan ID pengguna yang dipilih
+      function getSelectedUserId() {
+        const selectedUser = document.querySelector(".button-user.selected");
+        return selectedUser ? selectedUser.getAttribute("data-user-id") : null;
+      }
+
+      document
+        .getElementById("messageForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const response = await fetch(`/api/getLoggedInUserData`);
+          const idLogged = await response.json();
+          const messageInput = document.getElementById("input-message");
+          const message = messageInput.value;
+          // ID pengguna penerima yang dipilih
+          const selectedUserId = getSelectedUserId();
+          if (message && idLogged && selectedUserId) {
+            // Kirim pesan ke server menggunakan Socket.io
+            socket.emit("message", {
+              senderId: idLogged,
+              receiverId: selectedUserId,
+              message: message,
+            });
+
+            // Tampilkan pesan secara langsung di UI
+            displaySentMessage(message);
+
+            // Bersihkan input setelah mengirim
+            messageInput.value = "";
+          }
+        });
+
+      // Fungsi untuk mendapatkan ID pengguna yang dipilih
+      function getSelectedUserId() {
+        const selectedUser = document.querySelector(".button-user.selected");
+        return selectedUser ? selectedUser.getAttribute("data-user-id") : null;
+      }
+
+      // Fungsi untuk menampilkan pesan yang dikirim ke dalam UI
+      function displaySentMessage(message) {
+        const messageElement = document.createElement("p");
+        messageElement.textContent = `You : ${message}`;
+        messageElement.classList.add("sentMessage");
+        messagesContainer.appendChild(messageElement);
+
+        // Auto-scroll ke bawah setiap kali ada pesan baru
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+      socket.on("message", (data) => {
+          let broadcast = document.createElement("p");
+          broadcast.textContent = `id ${data.senderId}: ${data.message}`;
+          broadcast.classList.add("receivedMessage");
+          messagesContainer.appendChild(broadcast);
+      });
+    </script>
+  </body>
+</html>

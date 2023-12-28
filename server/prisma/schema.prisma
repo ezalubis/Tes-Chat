@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id         Int                 @id @default(autoincrement())
+  name       String
+  password   String
+  nomor      String
+  created_at DateTime?  @db.Timestamp(0)
+  updated_at DateTime?  @db.Timestamp(0)
+
+  chats      chat[]     @relation("user_chats")
+}
+
+model chat {
+  id          Int               @id @default(autoincrement())
+  id_pengirim Int                 
+  pesan       String
+  id_penerima Int
+  created_at  DateTime?  @db.Timestamp(0)
+  updated_at  DateTime?  @db.Timestamp(0)
+
+  id_pengirim_user user    @relation("user_chats", fields: [id_pengirim], references: [id])
+}
